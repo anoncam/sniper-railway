@@ -11,12 +11,13 @@ import re
 import socket
 from concurrent.futures import ThreadPoolExecutor
 
-# Optional import - nmap module may not be needed
+# Import our advanced scanner
 try:
-    import nmap
-    HAS_NMAP = True
-except ImportError:
-    HAS_NMAP = False
+    from scanner import AdvancedScanner
+    HAS_ADVANCED_SCANNER = True
+except ImportError as e:
+    print(f"Warning: Could not import AdvancedScanner: {e}")
+    HAS_ADVANCED_SCANNER = False
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -85,10 +86,42 @@ def run_scan(scan_id, target, scan_type, options):
     }
     
     try:
-        # Railway environment - always use pure Python scanning
+        # Use advanced scanner with Sn1per-like functionality
+        if HAS_ADVANCED_SCANNER:
+            scanner = AdvancedScanner(target, scan_type)
+            
+            # Run scan in thread-safe way
+            def update_progress():
+                scan_status[scan_id]['progress'] = 10
+                time.sleep(0.5)
+                scan_status[scan_id]['progress'] = 30
+                time.sleep(0.5)
+                scan_status[scan_id]['progress'] = 50
+                time.sleep(0.5)
+                scan_status[scan_id]['progress'] = 70
+                time.sleep(0.5)
+                scan_status[scan_id]['progress'] = 90
+            
+            progress_thread = threading.Thread(target=update_progress)
+            progress_thread.start()
+            
+            # Run the comprehensive scan
+            scan_output = scanner.run_full_scan()
+            scan_status[scan_id]['output'] = scan_output
+            scan_status[scan_id]['progress'] = 100
+            scan_status[scan_id]['status'] = 'completed'
+            scan_status[scan_id]['finished'] = datetime.now().isoformat()
+            
+            # Save results
+            with open(f'{RESULTS_DIR}/{scan_id}.json', 'w') as f:
+                json.dump(scan_status[scan_id], f)
+            
+            return
+        
+        # Fallback to basic scanning if advanced scanner not available
         output_lines = []
         output_lines.append("=" * 70)
-        output_lines.append(" RAILWAY-OPTIMIZED SECURITY SCAN")
+        output_lines.append(" BASIC SECURITY SCAN (Advanced Scanner Not Available)")
         output_lines.append("=" * 70)
         output_lines.append("")
         output_lines.append(f"[*] Target: {target}")
