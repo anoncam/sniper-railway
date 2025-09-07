@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM kalilinux/kali-rolling
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
