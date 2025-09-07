@@ -80,6 +80,7 @@ WORKDIR /app
 
 COPY app.py .
 COPY scanner.py .
+COPY enhanced_scanner.py .
 COPY templates/ templates/
 COPY nmap-wrapper.sh /app/tools/
 COPY sniper-wrapper.sh /app/tools/

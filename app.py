@@ -11,7 +11,14 @@ import re
 import socket
 from concurrent.futures import ThreadPoolExecutor
 
-# Import our advanced scanner
+# Import our scanners
+try:
+    from enhanced_scanner import EnhancedScanner
+    HAS_ENHANCED_SCANNER = True
+except ImportError as e:
+    print(f"Warning: Could not import EnhancedScanner: {e}")
+    HAS_ENHANCED_SCANNER = False
+    
 try:
     from scanner import AdvancedScanner
     HAS_ADVANCED_SCANNER = True
@@ -86,7 +93,44 @@ def run_scan(scan_id, target, scan_type, options):
     }
     
     try:
-        # Use advanced scanner with Sn1per-like functionality
+        # Try enhanced scanner first (with real tools)
+        if HAS_ENHANCED_SCANNER:
+            try:
+                scanner = EnhancedScanner(target, scan_type)
+                
+                # Run scan in thread-safe way
+                def update_progress():
+                    scan_status[scan_id]['progress'] = 10
+                    time.sleep(1)
+                    scan_status[scan_id]['progress'] = 25
+                    time.sleep(1)
+                    scan_status[scan_id]['progress'] = 40
+                    time.sleep(1)
+                    scan_status[scan_id]['progress'] = 55
+                    time.sleep(1)
+                    scan_status[scan_id]['progress'] = 70
+                    time.sleep(1)
+                    scan_status[scan_id]['progress'] = 85
+                
+                progress_thread = threading.Thread(target=update_progress)
+                progress_thread.start()
+                
+                # Run the enhanced scan with real tools
+                scan_output = scanner.run_full_scan()
+                scan_status[scan_id]['output'] = scan_output
+                scan_status[scan_id]['progress'] = 100
+                scan_status[scan_id]['status'] = 'completed'
+                scan_status[scan_id]['finished'] = datetime.now().isoformat()
+                
+                # Save results
+                with open(f'{RESULTS_DIR}/{scan_id}.json', 'w') as f:
+                    json.dump(scan_status[scan_id], f)
+                
+                return
+            except Exception as e:
+                print(f"Enhanced scanner failed: {e}, falling back to advanced scanner")
+        
+        # Fallback to advanced scanner with Python implementations
         if HAS_ADVANCED_SCANNER:
             scanner = AdvancedScanner(target, scan_type)
             
