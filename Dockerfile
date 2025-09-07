@@ -34,7 +34,7 @@ WORKDIR /opt/sn1per
 
 RUN bash install.sh
 
-RUN pip3 install flask flask-cors gunicorn
+RUN pip3 install --break-system-packages flask flask-cors gunicorn
 
 WORKDIR /app
 
