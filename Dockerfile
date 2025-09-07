@@ -72,9 +72,9 @@ RUN mkdir -p /usr/share/sniper/loot && \
     chmod -R 777 /usr/share/sniper && \
     mkdir -p /app/tools
 
-# Install Python packages
-COPY requirements.txt .
-RUN pip3 install --break-system-packages -r requirements.txt
+# Install Python packages (cache bust: v2)
+COPY requirements.txt /app/requirements.txt
+RUN pip3 install --break-system-packages Flask==3.0.0 Flask-CORS==6.0.0 gunicorn==21.2.0 gevent==23.9.1
 
 WORKDIR /app
 
