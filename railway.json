@@ -2,8 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile",
-    "buildCommand": ""
+    "dockerfilePath": "Dockerfile"
   },
   "deploy": {
     "numReplicas": 1,
@@ -11,23 +10,9 @@
     "restartPolicyMaxRetries": 3,
     "healthcheckPath": "/health",
     "healthcheckTimeout": 30,
-    "memoryLimitMB": 8192,
-    "cpuLimitMillicores": 4000,
     "region": "us-west1",
-    "runtime": "DOCKER",
     "sleepApplication": false,
     "minInstances": 1,
     "maxInstances": 1
-  },
-  "environments": {
-    "production": {
-      "build": {
-        "builder": "DOCKERFILE"
-      },
-      "deploy": {
-        "memoryLimitMB": 8192,
-        "cpuLimitMillicores": 4000
-      }
-    }
   }
 }
