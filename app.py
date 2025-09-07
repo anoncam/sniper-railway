@@ -85,85 +85,139 @@ def run_scan(scan_id, target, scan_type, options):
     }
     
     try:
-        # Start PostgreSQL service if needed
-        try:
-            subprocess.run(['service', 'postgresql', 'start'], capture_output=True, timeout=5)
-        except Exception as e:
-            print(f"PostgreSQL start warning: {e}")
-        
-        # First try to run a quick port scan to test nmap
-        test_cmd = ['nmap', '--version']
-        try:
-            test_result = subprocess.run(test_cmd, capture_output=True, text=True, timeout=5)
-        except Exception as e:
-            test_result = type('obj', (object,), {'stderr': str(e)})
-        
-        use_sniper = True
-        if 'Operation not permitted' in test_result.stderr:
-            scan_status[scan_id]['output'] = "[!] Detected restricted environment, using fallback scanning methods...\n\n"
-            # Run fallback scan first
-            fallback_result = fallback_port_scan(target)
-            scan_status[scan_id]['output'] += fallback_result + "\n\n"
-            scan_status[scan_id]['progress'] = 30
-        
-        # Build the sniper command
-        cmd = ['/usr/bin/sniper']
-        
-        if scan_type == 'normal':
-            cmd.extend(['-t', target])
-        elif scan_type == 'stealth':
-            cmd.extend(['-t', target, '-m', 'stealth'])
-        elif scan_type == 'web':
-            cmd.extend(['-t', target, '-m', 'web'])
-        elif scan_type == 'port':
-            cmd.extend(['-t', target, '-m', 'port'])
-        elif scan_type == 'fullportonly':
-            cmd.extend(['-t', target, '-m', 'fullportonly'])
-        elif scan_type == 'osint':
-            cmd.extend(['-t', target, '-m', 'osint'])
-        elif scan_type == 'recon':
-            cmd.extend(['-t', target, '-m', 'recon'])
-        elif scan_type == 'vulnscan':
-            cmd.extend(['-t', target, '-m', 'vulnscan'])
-        
-        if options.get('output_dir'):
-            cmd.extend(['-w', f'/tmp/sniper-work/{scan_id}'])
-        
-        # Set environment variables for better tool compatibility
-        env = os.environ.copy()
-        env['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/app/tools'
-        env['HOME'] = '/root'
-        env['NMAP_PRIVILEGED'] = '0'  # Force unprivileged mode
-        
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            env=env,
-            preexec_fn=os.setsid  # Create new process group
-        )
-        
+        # Railway environment - always use pure Python scanning
         output_lines = []
-        for line in iter(process.stdout.readline, ''):
-            if line:
-                output_lines.append(line)
-                scan_status[scan_id]['output'] = ''.join(output_lines[-1000:])
+        output_lines.append("=" * 70)
+        output_lines.append(" RAILWAY-OPTIMIZED SECURITY SCAN")
+        output_lines.append("=" * 70)
+        output_lines.append("")
+        output_lines.append(f"[*] Target: {target}")
+        output_lines.append(f"[*] Scan Type: {scan_type}")
+        output_lines.append(f"[*] Started: {datetime.now().isoformat()}")
+        output_lines.append("")
+        
+        scan_status[scan_id]['output'] = '\n'.join(output_lines)
+        scan_status[scan_id]['progress'] = 10
+        
+        # DNS Resolution
+        output_lines.append("[*] DNS Resolution:")
+        try:
+            ip = socket.gethostbyname(target)
+            output_lines.append(f"    {target} resolves to {ip}")
+            scan_status[scan_id]['progress'] = 20
+        except Exception as e:
+            output_lines.append(f"    Unable to resolve {target}: {str(e)}")
+            ip = target  # Try to use as IP if DNS fails
+        
+        scan_status[scan_id]['output'] = '\n'.join(output_lines)
+        
+        # Port Scanning
+        output_lines.append("")
+        output_lines.append("[*] Port Scan Results:")
+        scan_status[scan_id]['progress'] = 30
+        
+        # Different ports based on scan type
+        if scan_type in ['web', 'vulnscan']:
+            ports_to_scan = [80, 443, 8080, 8443, 3000, 4567, 8000, 8888]
+        elif scan_type == 'fullportonly':
+            ports_to_scan = list(range(1, 1001))  # Top 1000 ports
+        elif scan_type == 'port':
+            ports_to_scan = [21, 22, 23, 25, 53, 80, 110, 143, 443, 445, 3306, 3389, 8080, 8443]
+        else:
+            ports_to_scan = [22, 80, 443, 8080, 8443]  # Quick scan for normal/stealth
+        
+        open_ports = []
+        total_ports = len(ports_to_scan)
+        
+        def scan_single_port(port):
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(0.5 if scan_type == 'stealth' else 1.0)
+                result = sock.connect_ex((ip, port))
+                sock.close()
+                return port if result == 0 else None
+            except:
+                return None
+        
+        # Scan ports with progress updates
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(scan_single_port, port) for port in ports_to_scan]
+            for i, future in enumerate(futures):
+                port = future.result()
+                if port:
+                    open_ports.append(port)
+                    output_lines.append(f"    Port {port}/tcp: OPEN")
+                    scan_status[scan_id]['output'] = '\n'.join(output_lines)
                 
-                if 'Scanning' in line:
-                    scan_status[scan_id]['progress'] = 25
-                elif 'Enumerating' in line:
-                    scan_status[scan_id]['progress'] = 50
-                elif 'Testing' in line:
-                    scan_status[scan_id]['progress'] = 75
+                # Update progress
+                progress = 30 + int((i / total_ports) * 40)
+                scan_status[scan_id]['progress'] = progress
         
-        process.wait()
+        if not open_ports:
+            output_lines.append("    No open ports found in scan range")
+        else:
+            output_lines.append(f"    Total open ports: {len(open_ports)}")
         
-        scan_status[scan_id]['status'] = 'completed'
+        scan_status[scan_id]['output'] = '\n'.join(output_lines)
+        scan_status[scan_id]['progress'] = 70
+        
+        # Web Service Detection (if applicable)
+        if scan_type in ['web', 'normal', 'vulnscan'] or 80 in open_ports or 443 in open_ports:
+            output_lines.append("")
+            output_lines.append("[*] Web Service Detection:")
+            scan_status[scan_id]['progress'] = 80
+            
+            # Check HTTP
+            if 80 in open_ports:
+                try:
+                    import http.client
+                    conn = http.client.HTTPConnection(target, timeout=2)
+                    conn.request("HEAD", "/")
+                    response = conn.getresponse()
+                    output_lines.append(f"    HTTP: {response.status} {response.reason}")
+                    server = response.getheader('Server', 'Unknown')
+                    output_lines.append(f"    Server: {server}")
+                    conn.close()
+                except Exception as e:
+                    output_lines.append(f"    HTTP: Error - {str(e)}")
+            
+            # Check HTTPS
+            if 443 in open_ports:
+                try:
+                    import http.client
+                    import ssl
+                    context = ssl.create_default_context()
+                    context.check_hostname = False
+                    context.verify_mode = ssl.CERT_NONE
+                    conn = http.client.HTTPSConnection(target, context=context, timeout=2)
+                    conn.request("HEAD", "/")
+                    response = conn.getresponse()
+                    output_lines.append(f"    HTTPS: {response.status} {response.reason}")
+                    server = response.getheader('Server', 'Unknown')
+                    output_lines.append(f"    Server: {server}")
+                    conn.close()
+                except Exception as e:
+                    output_lines.append(f"    HTTPS: Error - {str(e)}")
+        
+        scan_status[scan_id]['output'] = '\n'.join(output_lines)
+        scan_status[scan_id]['progress'] = 90
+        
+        # Summary
+        output_lines.append("")
+        output_lines.append("=" * 70)
+        output_lines.append(" SCAN COMPLETE")
+        output_lines.append("=" * 70)
+        output_lines.append(f"[*] Target: {target}")
+        output_lines.append(f"[*] Open Ports Found: {len(open_ports)}")
+        output_lines.append(f"[*] Scan Type: {scan_type}")
+        output_lines.append(f"[*] Completed: {datetime.now().isoformat()}")
+        
+        scan_status[scan_id]['output'] = '\n'.join(output_lines)
         scan_status[scan_id]['progress'] = 100
+        scan_status[scan_id]['status'] = 'completed'
         scan_status[scan_id]['finished'] = datetime.now().isoformat()
         
+        # Save results
         with open(f'{RESULTS_DIR}/{scan_id}.json', 'w') as f:
             json.dump(scan_status[scan_id], f)
             
