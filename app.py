@@ -32,7 +32,11 @@ def run_scan(scan_id, target, scan_type, options):
     }
     
     try:
-        cmd = ['sniper']
+        # Start PostgreSQL service if needed
+        subprocess.run(['service', 'postgresql', 'start'], capture_output=True)
+        
+        # Build the sniper command
+        cmd = ['/usr/bin/sniper']
         
         if scan_type == 'normal':
             cmd.extend(['-t', target])
@@ -54,12 +58,19 @@ def run_scan(scan_id, target, scan_type, options):
         if options.get('output_dir'):
             cmd.extend(['-w', f'/app/results/{scan_id}'])
         
+        # Set environment variables for better tool compatibility
+        env = os.environ.copy()
+        env['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+        env['HOME'] = '/root'
+        
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            bufsize=1
+            bufsize=1,
+            env=env,
+            preexec_fn=os.setsid  # Create new process group
         )
         
         output_lines = []
