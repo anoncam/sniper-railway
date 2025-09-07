@@ -9,8 +9,14 @@ import time
 from datetime import datetime
 import re
 import socket
-import nmap
 from concurrent.futures import ThreadPoolExecutor
+
+# Optional import - nmap module may not be needed
+try:
+    import nmap
+    HAS_NMAP = True
+except ImportError:
+    HAS_NMAP = False
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -80,11 +86,17 @@ def run_scan(scan_id, target, scan_type, options):
     
     try:
         # Start PostgreSQL service if needed
-        subprocess.run(['service', 'postgresql', 'start'], capture_output=True, timeout=5)
+        try:
+            subprocess.run(['service', 'postgresql', 'start'], capture_output=True, timeout=5)
+        except Exception as e:
+            print(f"PostgreSQL start warning: {e}")
         
         # First try to run a quick port scan to test nmap
         test_cmd = ['nmap', '--version']
-        test_result = subprocess.run(test_cmd, capture_output=True, text=True, timeout=5)
+        try:
+            test_result = subprocess.run(test_cmd, capture_output=True, text=True, timeout=5)
+        except Exception as e:
+            test_result = type('obj', (object,), {'stderr': str(e)})
         
         use_sniper = True
         if 'Operation not permitted' in test_result.stderr:

@@ -102,8 +102,8 @@ mkdir -p /tmp/sniper-work && chmod 777 /tmp/sniper-work\n\
 # Increase system limits for scanning\n\
 ulimit -n 65536 2>/dev/null || true\n\
 ulimit -u 32768 2>/dev/null || true\n\
-# Start the application with more workers and longer timeout\n\
-exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 4 --threads 2 --timeout 600 --worker-class gthread --max-requests 1000 --max-requests-jitter 50 app:app' > /app/start.sh && \
+# Start the application with stable configuration\n\
+exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 600 --preload --log-level debug app:app' > /app/start.sh && \
     chmod +x /app/start.sh
 
 CMD ["/app/start.sh"]
