@@ -3,246 +3,551 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sn1per Web Interface</title>
+    <title>SN1PER :: Attack Surface Management</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
         
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #1a1f3a;
+            --text-primary: #00ff41;
+            --text-secondary: #39ff14;
+            --text-dim: #5a5a5a;
+            --text-white: #ffffff;
+            --accent: #ff1744;
+            --warning: #ff9800;
+            --border: #2a2f4a;
+            --terminal-bg: #000000;
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
-            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 255, 65, 0.03) 2px,
+                    rgba(0, 255, 65, 0.03) 4px
+                );
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                transparent 50%,
+                rgba(0, 0, 0, 0.25) 50%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 2;
+            animation: scanlines 8s linear infinite;
+        }
+        
+        @keyframes scanlines {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 10px; }
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 10;
         }
         
         .header {
-            text-align: center;
-            color: white;
+            border: 2px solid var(--text-primary);
+            padding: 20px;
             margin-bottom: 30px;
+            position: relative;
+            background: var(--terminal-bg);
         }
         
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+        .header::before {
+            content: "SYSTEM INITIALIZED";
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: var(--terminal-bg);
+            padding: 0 10px;
+            color: var(--text-primary);
+            font-size: 12px;
         }
         
-        .card {
-            background: white;
-            border-radius: 10px;
-            padding: 25px;
+        .ascii-art {
+            color: var(--text-primary);
+            font-size: 10px;
+            line-height: 1.2;
             margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            white-space: pre;
+            text-shadow: 0 0 10px var(--text-primary);
+        }
+        
+        .terminal-window {
+            background: var(--terminal-bg);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+        }
+        
+        .terminal-header {
+            background: var(--bg-secondary);
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .terminal-title {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+        
+        .terminal-controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .terminal-control {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .control-close { background: #ff5f57; }
+        .control-minimize { background: #ffbd2e; }
+        .control-maximize { background: #28ca42; }
+        
+        .terminal-body {
+            padding: 20px;
+            min-height: 200px;
+        }
+        
+        .command-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .prompt {
+            color: var(--text-primary);
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        .command-input {
+            background: transparent;
+            border: none;
+            color: var(--text-white);
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            flex: 1;
+            caret-color: var(--text-primary);
         }
         
         .form-group {
             margin-bottom: 20px;
         }
         
-        label {
+        .form-label {
+            color: var(--text-primary);
             display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #333;
+            margin-bottom: 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
-        input, select {
+        .terminal-input, .terminal-select {
             width: 100%;
+            background: var(--terminal-bg);
+            border: 1px solid var(--text-primary);
+            color: var(--text-white);
             padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.3s;
         }
         
-        button {
-            background: #667eea;
-            color: white;
-            border: none;
+        .terminal-input:focus, .terminal-select:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+            border-color: var(--text-secondary);
+        }
+        
+        .btn {
+            background: transparent;
+            border: 2px solid var(--text-primary);
+            color: var(--text-primary);
             padding: 12px 30px;
-            border-radius: 5px;
-            font-size: 16px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
         }
         
-        button:hover {
-            background: #5a67d8;
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--text-primary);
+            transition: left 0.3s;
+            z-index: -1;
         }
         
-        button:disabled {
-            background: #ccc;
+        .btn:hover {
+            color: var(--terminal-bg);
+        }
+        
+        .btn:hover::before {
+            left: 0;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
             cursor: not-allowed;
         }
         
-        .scan-output {
-            background: #f7f7f7;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+        .btn-danger {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        
+        .btn-danger::before {
+            background: var(--accent);
+        }
+        
+        .output-console {
+            background: var(--terminal-bg);
+            border: 1px solid var(--text-dim);
             padding: 15px;
-            max-height: 400px;
+            height: 400px;
             overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
+            font-size: 13px;
+            line-height: 1.6;
             white-space: pre-wrap;
             word-wrap: break-word;
+            color: var(--text-white);
+        }
+        
+        .output-console::-webkit-scrollbar {
+            width: 10px;
+        }
+        
+        .output-console::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        
+        .output-console::-webkit-scrollbar-thumb {
+            background: var(--text-primary);
+        }
+        
+        .progress-container {
+            background: var(--terminal-bg);
+            border: 1px solid var(--text-dim);
+            height: 30px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
         }
         
         .progress-bar {
-            width: 100%;
-            height: 30px;
-            background: #f0f0f0;
-            border-radius: 15px;
-            overflow: hidden;
-            margin: 20px 0;
-        }
-        
-        .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, var(--text-primary), var(--text-secondary));
             transition: width 0.3s;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            color: var(--terminal-bg);
             font-weight: bold;
+            position: relative;
         }
         
-        .scan-history {
-            margin-top: 30px;
+        .progress-bar::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent
+            );
+            animation: shimmer 2s infinite;
         }
         
-        .history-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            border-bottom: 1px solid #eee;
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
         
-        .history-item:last-child {
-            border-bottom: none;
-        }
-        
-        .status-badge {
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            font-size: 11px;
             font-weight: bold;
             text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
         .status-running {
-            background: #fbbf24;
-            color: #78350f;
+            color: var(--warning);
+            border: 1px solid var(--warning);
+            animation: pulse 1s infinite;
         }
         
         .status-completed {
-            background: #34d399;
-            color: #064e3b;
+            color: var(--text-primary);
+            border: 1px solid var(--text-primary);
         }
         
         .status-error {
-            background: #f87171;
-            color: #7f1d1d;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         
         .alert {
+            border: 1px solid var(--accent);
+            background: rgba(255, 23, 68, 0.1);
+            color: var(--accent);
             padding: 15px;
-            border-radius: 5px;
             margin-bottom: 20px;
+            position: relative;
+            font-size: 13px;
         }
         
-        .alert-warning {
-            background: #fef3c7;
-            border: 1px solid #fbbf24;
-            color: #78350f;
+        .alert::before {
+            content: "[!]";
+            font-weight: bold;
+            margin-right: 10px;
         }
         
-        .scan-options {
+        .scan-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
             margin-top: 15px;
         }
         
-        .option-checkbox {
+        .scan-option {
             display: flex;
             align-items: center;
+            color: var(--text-white);
+            font-size: 13px;
         }
         
-        .option-checkbox input {
-            width: auto;
+        .scan-option input[type="checkbox"] {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 1px solid var(--text-primary);
+            background: var(--terminal-bg);
             margin-right: 8px;
+            cursor: pointer;
+            position: relative;
         }
-    </style>
+        
+        .scan-option input[type="checkbox"]:checked::after {
+            content: "✓";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+        
+        .history-log {
+            border: 1px solid var(--text-dim);
+            background: var(--terminal-bg);
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .history-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--bg-secondary);
+            color: var(--text-white);
+            font-size: 13px;
+        }
+        
+        .history-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .typing-effect {
+            overflow: hidden;
+            white-space: nowrap;
+            animation: typing 2s steps(40, end);
+        }
+        
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        
+        .glitch {
+            animation: glitch 2s infinite;
+        }
+        
+        @keyframes glitch {
+            0%, 100% { text-shadow: 0 0 10px var(--text-primary); }
+            25% { text-shadow: -2px 0 var(--accent), 2px 0 var(--text-secondary); }
+            50% { text-shadow: 2px 0 var(--accent), -2px 0 var(--text-secondary); }
+            75% { text-shadow: 0 0 20px var(--text-primary); }
+        }
 </head>
 <body>
+    <div class="scanlines"></div>
     <div class="container">
         <div class="header">
-            <h1>Sn1per Web Interface</h1>
-            <p>Attack Surface Management Platform</p>
+            <div class="ascii-art glitch">
+ ██████  ███    ██  ██  ██████   ███████ ██████  
+██       ████   ██ ███  ██   ██  ██      ██   ██ 
+███████  ██ ██  ██  ██  ██████   █████   ██████  
+     ██  ██  ██ ██  ██  ██       ██      ██   ██ 
+██████   ██   ████  ██  ██       ███████ ██   ██ 
+            </div>
+            <div style="text-align: center; color: var(--text-dim); margin-top: 10px;">
+                <span class="typing-effect">ATTACK SURFACE MANAGEMENT PLATFORM v2.0</span>
+            </div>
         </div>
         
-        <div class="alert alert-warning">
-            <strong>Warning:</strong> This tool is for authorized security testing only. Ensure you have permission to scan any targets.
+        <div class="alert">
+            AUTHORIZATION REQUIRED: This tool is for authorized security testing only. Unauthorized access is prohibited and may result in legal action.
         </div>
         
-        <div class="card">
-            <h2>New Scan</h2>
-            <form id="scanForm">
-                <div class="form-group">
-                    <label for="target">Target (IP, Domain, or URL)</label>
-                    <input type="text" id="target" name="target" placeholder="example.com or 192.168.1.1" required>
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <span class="terminal-title">sniper@terminal:~$ TARGET CONFIGURATION</span>
+                <div class="terminal-controls">
+                    <button class="terminal-control control-close"></button>
+                    <button class="terminal-control control-minimize"></button>
+                    <button class="terminal-control control-maximize"></button>
                 </div>
-                
-                <div class="form-group">
-                    <label for="scanType">Scan Type</label>
-                    <select id="scanType" name="scanType">
-                        <option value="normal">Normal - Full scan with active tests</option>
-                        <option value="stealth">Stealth - Passive reconnaissance</option>
-                        <option value="web">Web - Web application focused</option>
-                        <option value="port">Port - Port scanning only</option>
-                        <option value="fullportonly">Full Port - All 65535 ports</option>
-                        <option value="osint">OSINT - Open source intelligence</option>
-                        <option value="recon">Recon - Reconnaissance only</option>
-                        <option value="vulnscan">Vuln Scan - Vulnerability scanning</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>Additional Options</label>
-                    <div class="scan-options">
-                        <div class="option-checkbox">
-                            <input type="checkbox" id="saveOutput" name="saveOutput">
-                            <label for="saveOutput">Save detailed output</label>
+            </div>
+            <div class="terminal-body">
+                <form id="scanForm">
+                    <div class="command-line">
+                        <span class="prompt">sniper@target:~$</span>
+                        <input type="text" id="target" name="target" class="command-input" placeholder="enter target [domain/ip]" required autocomplete="off">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">[ SCAN MODE ]</label>
+                        <select id="scanType" name="scanType" class="terminal-select">
+                            <option value="normal">NORMAL :: Full scan with active tests</option>
+                            <option value="stealth">STEALTH :: Passive reconnaissance</option>
+                            <option value="web">WEB :: Web application focused</option>
+                            <option value="port">PORT :: Port scanning only</option>
+                            <option value="fullportonly">FULLPORT :: All 65535 ports</option>
+                            <option value="osint">OSINT :: Open source intelligence</option>
+                            <option value="recon">RECON :: Reconnaissance only</option>
+                            <option value="vulnscan">VULNSCAN :: Vulnerability scanning</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">[ OPTIONS ]</label>
+                        <div class="scan-grid">
+                            <div class="scan-option">
+                                <input type="checkbox" id="saveOutput" name="saveOutput">
+                                <label for="saveOutput">Save output</label>
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <button type="submit" id="startScan">Start Scan</button>
-            </form>
-        </div>
-        
-        <div class="card" id="scanProgress" style="display: none;">
-            <h2>Scan Progress</h2>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill">0%</div>
+                    
+                    <button type="submit" id="startScan" class="btn">[ EXECUTE SCAN ]</button>
+                </form>
             </div>
-            <div class="scan-output" id="scanOutput"></div>
-            <button id="stopScan" style="margin-top: 15px; background: #ef4444;">Stop Scan</button>
         </div>
         
-        <div class="card scan-history">
-            <h2>Scan History</h2>
-            <div id="historyList">
-                <p style="color: #999;">No scans yet</p>
+        <div class="terminal-window" id="scanProgress" style="display: none;">
+            <div class="terminal-header">
+                <span class="terminal-title">sniper@terminal:~$ SCAN OUTPUT</span>
+                <div class="terminal-controls">
+                    <button class="terminal-control control-close"></button>
+                    <button class="terminal-control control-minimize"></button>
+                    <button class="terminal-control control-maximize"></button>
+                </div>
+            </div>
+            <div class="terminal-body">
+                <div class="progress-container">
+                    <div class="progress-bar" id="progressFill">0%</div>
+                </div>
+                <div class="output-console" id="scanOutput"></div>
+                <button id="stopScan" class="btn btn-danger" style="margin-top: 15px;">[ TERMINATE ]</button>
+            </div>
+        </div>
+        
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <span class="terminal-title">sniper@terminal:~$ SCAN HISTORY</span>
+                <div class="terminal-controls">
+                    <button class="terminal-control control-close"></button>
+                    <button class="terminal-control control-minimize"></button>
+                    <button class="terminal-control control-maximize"></button>
+                </div>
+            </div>
+            <div class="terminal-body">
+                <div class="history-log" id="historyList">
+                    <div style="color: var(--text-dim); text-align: center;">
+                        <span class="prompt">$</span> No previous scans detected...
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -260,7 +565,7 @@
             
             const button = document.getElementById('startScan');
             button.disabled = true;
-            button.textContent = 'Starting scan...';
+            button.textContent = '[ INITIALIZING... ]';
             
             try {
                 const response = await fetch('/scan', {
@@ -282,17 +587,28 @@
                 if (response.ok) {
                     currentScanId = data.scan_id;
                     document.getElementById('scanProgress').style.display = 'block';
+                    const output = document.getElementById('scanOutput');
+                    output.textContent = `> Initializing scan ${data.scan_id}\n> Target: ${target}\n> Mode: ${scanType.toUpperCase()}\n> Starting reconnaissance...\n\n`;
                     startStatusPolling();
                 } else {
-                    alert('Error: ' + (data.error || 'Failed to start scan'));
+                    showTerminalError(data.error || 'Failed to start scan');
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                showTerminalError(error.message);
             } finally {
                 button.disabled = false;
-                button.textContent = 'Start Scan';
+                button.textContent = '[ EXECUTE SCAN ]';
             }
         });
+        
+        function showTerminalError(message) {
+            const output = document.getElementById('scanOutput');
+            if (output.textContent) {
+                output.textContent += `\n[ERROR] ${message}\n`;
+            } else {
+                alert(`[ERROR] ${message}`);
+            }
+        }
         
         function startStatusPolling() {
             if (statusInterval) clearInterval(statusInterval);
@@ -326,12 +642,25 @@
             progressFill.textContent = progress + '%';
             
             if (data.output) {
-                scanOutput.textContent = data.output;
+                const lines = data.output.split('\n');
+                const formattedOutput = lines.map(line => {
+                    if (line.includes('Scanning')) return `[*] ${line}`;
+                    if (line.includes('Found') || line.includes('Detected')) return `[+] ${line}`;
+                    if (line.includes('Error') || line.includes('Failed')) return `[-] ${line}`;
+                    if (line.includes('Warning')) return `[!] ${line}`;
+                    return line ? `> ${line}` : '';
+                }).join('\n');
+                
+                scanOutput.textContent = formattedOutput;
                 scanOutput.scrollTop = scanOutput.scrollHeight;
             }
             
             if (data.status === 'error') {
-                scanOutput.textContent += '\n\nError: ' + (data.error || 'Unknown error');
+                scanOutput.textContent += `\n\n[ERROR] ${data.error || 'Unknown error'}\n[*] Scan terminated.\n`;
+            }
+            
+            if (data.status === 'completed') {
+                scanOutput.textContent += `\n[*] Scan completed successfully.\n[*] Results saved to scan_id: ${currentScanId}\n`;
             }
         }
         
@@ -352,20 +681,20 @@
                 const historyList = document.getElementById('historyList');
                 
                 if (scans.length === 0) {
-                    historyList.innerHTML = '<p style="color: #999;">No scans yet</p>';
+                    historyList.innerHTML = '<div style="color: var(--text-dim); text-align: center;"><span class="prompt">$</span> No previous scans detected...</div>';
                 } else {
                     historyList.innerHTML = scans.map(scan => `
-                        <div class="history-item">
+                        <div class="history-entry">
                             <div>
-                                <strong>${scan.target}</strong>
+                                <span style="color: var(--text-primary);">[${scan.type.toUpperCase()}]</span> ${scan.target}
                                 <br>
-                                <small>${scan.type} - ${new Date(scan.started).toLocaleString()}</small>
+                                <small style="color: var(--text-dim);">${new Date(scan.started).toLocaleString()}</small>
                             </div>
-                            <div>
-                                <span class="status-badge status-${scan.status}">${scan.status}</span>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span class="status-indicator status-${scan.status}">${scan.status}</span>
                                 ${scan.status === 'completed' ? `
-                                    <button onclick="downloadResults('${scan.id}')" style="margin-left: 10px; padding: 5px 10px; font-size: 14px;">
-                                        Download
+                                    <button onclick="downloadResults('${scan.id}')" class="btn" style="padding: 4px 12px; font-size: 11px;">
+                                        DOWNLOAD
                                     </button>
                                 ` : ''}
                             </div>
@@ -383,6 +712,57 @@
         
         loadScanHistory();
         setInterval(loadScanHistory, 10000);
+        
+        // Terminal typing effect for input
+        const targetInput = document.getElementById('target');
+        targetInput.addEventListener('focus', function() {
+            this.placeholder = '';
+        });
+        targetInput.addEventListener('blur', function() {
+            if (!this.value) {
+                this.placeholder = 'enter target [domain/ip]';
+            }
+        });
+        
+        // Add terminal sound effect (visual feedback)
+        document.addEventListener('keypress', function(e) {
+            if (e.target.classList.contains('command-input')) {
+                e.target.style.textShadow = '0 0 5px var(--text-primary)';
+                setTimeout(() => {
+                    e.target.style.textShadow = '';
+                }, 50);
+            }
+        });
+        
+        // Terminal window controls
+        document.querySelectorAll('.control-close').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.closest('.terminal-window').style.display = 'none';
+            });
+        });
+        
+        document.querySelectorAll('.control-maximize').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const terminal = this.closest('.terminal-window');
+                terminal.style.position = terminal.style.position === 'fixed' ? '' : 'fixed';
+                terminal.style.top = terminal.style.position === 'fixed' ? '0' : '';
+                terminal.style.left = terminal.style.position === 'fixed' ? '0' : '';
+                terminal.style.width = terminal.style.position === 'fixed' ? '100%' : '';
+                terminal.style.height = terminal.style.position === 'fixed' ? '100vh' : '';
+                terminal.style.zIndex = terminal.style.position === 'fixed' ? '1000' : '';
+                terminal.style.margin = terminal.style.position === 'fixed' ? '0' : '';
+            });
+        });
+        
+        // Boot sequence animation
+        window.addEventListener('load', function() {
+            const header = document.querySelector('.ascii-art');
+            header.style.opacity = '0';
+            setTimeout(() => {
+                header.style.transition = 'opacity 1s';
+                header.style.opacity = '1';
+            }, 100);
+        });
     </script>
 </body>
 </html>
