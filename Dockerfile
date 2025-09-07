@@ -72,9 +72,9 @@ RUN mkdir -p /usr/share/sniper/loot && \
     chmod -R 777 /usr/share/sniper && \
     mkdir -p /app/tools
 
-# Install Python packages (cache bust: v2)
+# Install Python packages (cache bust: v3)
 COPY requirements.txt /app/requirements.txt
-RUN pip3 install --break-system-packages Flask==3.0.0 Flask-CORS==6.0.0 gunicorn==21.2.0 gevent==23.9.1
+RUN pip3 install --break-system-packages Flask==3.0.0 Flask-CORS==4.0.0 gunicorn==21.2.0
 
 WORKDIR /app
 
@@ -102,8 +102,8 @@ mkdir -p /tmp/sniper-work && chmod 777 /tmp/sniper-work\n\
 # Increase system limits for scanning\n\
 ulimit -n 65536 2>/dev/null || true\n\
 ulimit -u 32768 2>/dev/null || true\n\
-# Start the application with stable configuration\n\
-exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 600 --preload --log-level debug app:app' > /app/start.sh && \
+# Start the application with simple stable configuration\n\
+exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 1 --timeout 600 --log-level info app:app' > /app/start.sh && \
     chmod +x /app/start.sh
 
 CMD ["/app/start.sh"]
