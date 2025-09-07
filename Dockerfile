@@ -81,15 +81,19 @@ WORKDIR /app
 COPY app.py .
 COPY templates/ templates/
 COPY nmap-wrapper.sh /app/tools/
+COPY sniper-wrapper.sh /app/tools/
 
-# Create symlink to replace nmap with our wrapper
-RUN chmod +x /app/tools/nmap-wrapper.sh && \
-    mv /usr/bin/nmap /usr/bin/nmap.original || true && \
-    ln -sf /app/tools/nmap-wrapper.sh /usr/bin/nmap
+# Create symlinks to use our wrappers
+RUN chmod +x /app/tools/nmap-wrapper.sh /app/tools/sniper-wrapper.sh && \
+    mv /usr/bin/nmap /usr/bin/nmap.original 2>/dev/null || true && \
+    ln -sf /app/tools/nmap-wrapper.sh /usr/bin/nmap && \
+    mv /usr/bin/sniper /usr/bin/sniper.original 2>/dev/null || true && \
+    ln -sf /app/tools/sniper-wrapper.sh /usr/bin/sniper
 
 # Fix Sn1per to work in restricted environment
-RUN sed -i 's|/usr/lib/nmap/nmap|/usr/bin/nmap|g' /usr/bin/sniper 2>/dev/null || true && \
-    sed -i 's|sudo nmap|nmap|g' /usr/bin/sniper 2>/dev/null || true
+RUN sed -i 's|/usr/lib/nmap/nmap|/usr/bin/nmap|g' /usr/bin/sniper.original 2>/dev/null || true && \
+    sed -i 's|sudo nmap|nmap|g' /usr/bin/sniper.original 2>/dev/null || true && \
+    sed -i 's|parallel -j|parallel -j 1|g' /usr/bin/sniper.original 2>/dev/null || true
 
 EXPOSE 8080
 
@@ -99,9 +103,9 @@ RUN echo '#!/bin/bash\n\
 service postgresql start 2>/dev/null || true\n\
 # Create writable directories\n\
 mkdir -p /tmp/sniper-work && chmod 777 /tmp/sniper-work\n\
-# Increase system limits for scanning\n\
-ulimit -n 65536 2>/dev/null || true\n\
-ulimit -u 32768 2>/dev/null || true\n\
+# Set conservative limits for Railway\n\
+ulimit -n 1024 2>/dev/null || true\n\
+ulimit -u 100 2>/dev/null || true\n\
 # Start the application with simple stable configuration\n\
 exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 1 --timeout 600 --log-level info app:app' > /app/start.sh && \
     chmod +x /app/start.sh
