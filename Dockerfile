@@ -80,13 +80,18 @@ COPY templates/ templates/
 
 EXPOSE 8080
 
-# Create a startup script to handle permissions
+# Create a startup script to handle permissions and optimize performance
 RUN echo '#!/bin/bash\n\
+# Start PostgreSQL\n\
 service postgresql start 2>/dev/null || true\n\
-# Fix nmap permissions\n\
+# Fix permissions for scanning tools\n\
 chmod +s /usr/bin/nmap 2>/dev/null || true\n\
-# Start the application\n\
-exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 300 app:app' > /app/start.sh && \
+chmod +s /usr/bin/masscan 2>/dev/null || true\n\
+# Increase system limits for scanning\n\
+ulimit -n 65536\n\
+ulimit -u 32768\n\
+# Start the application with more workers and longer timeout\n\
+exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 4 --threads 2 --timeout 600 --worker-class gthread --max-requests 1000 --max-requests-jitter 50 app:app' > /app/start.sh && \
     chmod +x /app/start.sh
 
 CMD ["/app/start.sh"]
