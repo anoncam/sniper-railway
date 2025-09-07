@@ -69,14 +69,27 @@ RUN chmod +x install.sh && \
 
 # Create necessary directories
 RUN mkdir -p /usr/share/sniper/loot && \
-    chmod -R 777 /usr/share/sniper
+    chmod -R 777 /usr/share/sniper && \
+    mkdir -p /app/tools
 
-RUN pip3 install --break-system-packages flask flask-cors gunicorn
+# Install Python packages
+COPY requirements.txt .
+RUN pip3 install --break-system-packages -r requirements.txt
 
 WORKDIR /app
 
 COPY app.py .
 COPY templates/ templates/
+COPY nmap-wrapper.sh /app/tools/
+
+# Create symlink to replace nmap with our wrapper
+RUN chmod +x /app/tools/nmap-wrapper.sh && \
+    mv /usr/bin/nmap /usr/bin/nmap.original || true && \
+    ln -sf /app/tools/nmap-wrapper.sh /usr/bin/nmap
+
+# Fix Sn1per to work in restricted environment
+RUN sed -i 's|/usr/lib/nmap/nmap|/usr/bin/nmap|g' /usr/bin/sniper 2>/dev/null || true && \
+    sed -i 's|sudo nmap|nmap|g' /usr/bin/sniper 2>/dev/null || true
 
 EXPOSE 8080
 
@@ -84,12 +97,11 @@ EXPOSE 8080
 RUN echo '#!/bin/bash\n\
 # Start PostgreSQL\n\
 service postgresql start 2>/dev/null || true\n\
-# Fix permissions for scanning tools\n\
-chmod +s /usr/bin/nmap 2>/dev/null || true\n\
-chmod +s /usr/bin/masscan 2>/dev/null || true\n\
+# Create writable directories\n\
+mkdir -p /tmp/sniper-work && chmod 777 /tmp/sniper-work\n\
 # Increase system limits for scanning\n\
-ulimit -n 65536\n\
-ulimit -u 32768\n\
+ulimit -n 65536 2>/dev/null || true\n\
+ulimit -u 32768 2>/dev/null || true\n\
 # Start the application with more workers and longer timeout\n\
 exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 4 --threads 2 --timeout 600 --worker-class gthread --max-requests 1000 --max-requests-jitter 50 app:app' > /app/start.sh && \
     chmod +x /app/start.sh

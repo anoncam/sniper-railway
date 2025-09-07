@@ -8,6 +8,9 @@ import threading
 import time
 from datetime import datetime
 import re
+import socket
+import nmap
+from concurrent.futures import ThreadPoolExecutor
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -21,6 +24,50 @@ scan_status = {}
 def sanitize_input(input_string):
     return re.sub(r'[^\w\s\-\.\:\/]', '', input_string)
 
+def fallback_port_scan(target, ports="1-1000"):
+    """Fallback Python-based port scanner when nmap fails"""
+    results = []
+    try:
+        host_ip = socket.gethostbyname(target)
+        results.append(f"Resolved {target} to {host_ip}")
+        
+        def scan_port(port):
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(0.5)
+                result = sock.connect_ex((host_ip, port))
+                sock.close()
+                return port if result == 0 else None
+            except:
+                return None
+        
+        # Parse port range
+        if '-' in ports:
+            start, end = ports.split('-')
+            port_list = range(int(start), min(int(end) + 1, 65536))
+        else:
+            port_list = [int(ports)]
+        
+        results.append(f"Scanning {len(port_list)} ports...")
+        open_ports = []
+        
+        with ThreadPoolExecutor(max_workers=100) as executor:
+            scan_results = executor.map(scan_port, port_list)
+            for port in scan_results:
+                if port:
+                    open_ports.append(port)
+                    results.append(f"Port {port}/tcp open")
+        
+        if open_ports:
+            results.append(f"\nFound {len(open_ports)} open ports: {', '.join(map(str, open_ports))}")
+        else:
+            results.append("\nAll scanned ports appear closed or filtered")
+            
+    except Exception as e:
+        results.append(f"Scan error: {str(e)}")
+    
+    return '\n'.join(results)
+
 def run_scan(scan_id, target, scan_type, options):
     scan_status[scan_id] = {
         'status': 'running',
@@ -33,7 +80,19 @@ def run_scan(scan_id, target, scan_type, options):
     
     try:
         # Start PostgreSQL service if needed
-        subprocess.run(['service', 'postgresql', 'start'], capture_output=True)
+        subprocess.run(['service', 'postgresql', 'start'], capture_output=True, timeout=5)
+        
+        # First try to run a quick port scan to test nmap
+        test_cmd = ['nmap', '--version']
+        test_result = subprocess.run(test_cmd, capture_output=True, text=True, timeout=5)
+        
+        use_sniper = True
+        if 'Operation not permitted' in test_result.stderr:
+            scan_status[scan_id]['output'] = "[!] Detected restricted environment, using fallback scanning methods...\n\n"
+            # Run fallback scan first
+            fallback_result = fallback_port_scan(target)
+            scan_status[scan_id]['output'] += fallback_result + "\n\n"
+            scan_status[scan_id]['progress'] = 30
         
         # Build the sniper command
         cmd = ['/usr/bin/sniper']
@@ -56,12 +115,13 @@ def run_scan(scan_id, target, scan_type, options):
             cmd.extend(['-t', target, '-m', 'vulnscan'])
         
         if options.get('output_dir'):
-            cmd.extend(['-w', f'/app/results/{scan_id}'])
+            cmd.extend(['-w', f'/tmp/sniper-work/{scan_id}'])
         
         # Set environment variables for better tool compatibility
         env = os.environ.copy()
-        env['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+        env['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/app/tools'
         env['HOME'] = '/root'
+        env['NMAP_PRIVILEGED'] = '0'  # Force unprivileged mode
         
         process = subprocess.Popen(
             cmd,
