@@ -1,5 +1,5 @@
-# Flask 3.1.1 is pre-installed in Kali
+# Flask 3.1.1 and requests 2.32.4 are pre-installed in Kali
 Flask-CORS==4.0.0
 gunicorn==21.2.0
-requests==2.31.0
+# requests==2.31.0  # Using system package
 dnspython==2.4.2
