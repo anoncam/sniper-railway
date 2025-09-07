@@ -1,0 +1,23 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "startCommand": "gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 300 app:app",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3,
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30
+  },
+  "envVars": {
+    "PORT": {
+      "default": "8080"
+    },
+    "SECRET_KEY": {
+      "generator": "secret"
+    }
+  }
+}

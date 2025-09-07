@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sn1per Web Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5a67d8;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .scan-output {
+            background: #f7f7f7;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #f0f0f0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .scan-history {
+            margin-top: 30px;
+        }
+        
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-running {
+            background: #fbbf24;
+            color: #78350f;
+        }
+        
+        .status-completed {
+            background: #34d399;
+            color: #064e3b;
+        }
+        
+        .status-error {
+            background: #f87171;
+            color: #7f1d1d;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-warning {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            color: #78350f;
+        }
+        
+        .scan-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .option-checkbox {
+            display: flex;
+            align-items: center;
+        }
+        
+        .option-checkbox input {
+            width: auto;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Sn1per Web Interface</h1>
+            <p>Attack Surface Management Platform</p>
+        </div>
+        
+        <div class="alert alert-warning">
+            <strong>Warning:</strong> This tool is for authorized security testing only. Ensure you have permission to scan any targets.
+        </div>
+        
+        <div class="card">
+            <h2>New Scan</h2>
+            <form id="scanForm">
+                <div class="form-group">
+                    <label for="target">Target (IP, Domain, or URL)</label>
+                    <input type="text" id="target" name="target" placeholder="example.com or 192.168.1.1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="scanType">Scan Type</label>
+                    <select id="scanType" name="scanType">
+                        <option value="normal">Normal - Full scan with active tests</option>
+                        <option value="stealth">Stealth - Passive reconnaissance</option>
+                        <option value="web">Web - Web application focused</option>
+                        <option value="port">Port - Port scanning only</option>
+                        <option value="fullportonly">Full Port - All 65535 ports</option>
+                        <option value="osint">OSINT - Open source intelligence</option>
+                        <option value="recon">Recon - Reconnaissance only</option>
+                        <option value="vulnscan">Vuln Scan - Vulnerability scanning</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Additional Options</label>
+                    <div class="scan-options">
+                        <div class="option-checkbox">
+                            <input type="checkbox" id="saveOutput" name="saveOutput">
+                            <label for="saveOutput">Save detailed output</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" id="startScan">Start Scan</button>
+            </form>
+        </div>
+        
+        <div class="card" id="scanProgress" style="display: none;">
+            <h2>Scan Progress</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill">0%</div>
+            </div>
+            <div class="scan-output" id="scanOutput"></div>
+            <button id="stopScan" style="margin-top: 15px; background: #ef4444;">Stop Scan</button>
+        </div>
+        
+        <div class="card scan-history">
+            <h2>Scan History</h2>
+            <div id="historyList">
+                <p style="color: #999;">No scans yet</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentScanId = null;
+        let statusInterval = null;
+        
+        document.getElementById('scanForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const target = document.getElementById('target').value;
+            const scanType = document.getElementById('scanType').value;
+            const saveOutput = document.getElementById('saveOutput').checked;
+            
+            const button = document.getElementById('startScan');
+            button.disabled = true;
+            button.textContent = 'Starting scan...';
+            
+            try {
+                const response = await fetch('/scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        target: target,
+                        scan_type: scanType,
+                        options: {
+                            output_dir: saveOutput
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentScanId = data.scan_id;
+                    document.getElementById('scanProgress').style.display = 'block';
+                    startStatusPolling();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to start scan'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Start Scan';
+            }
+        });
+        
+        function startStatusPolling() {
+            if (statusInterval) clearInterval(statusInterval);
+            
+            statusInterval = setInterval(async () => {
+                if (!currentScanId) return;
+                
+                try {
+                    const response = await fetch(`/status/${currentScanId}`);
+                    const data = await response.json();
+                    
+                    updateProgress(data);
+                    
+                    if (data.status === 'completed' || data.status === 'error') {
+                        clearInterval(statusInterval);
+                        currentScanId = null;
+                        loadScanHistory();
+                    }
+                } catch (error) {
+                    console.error('Error polling status:', error);
+                }
+            }, 2000);
+        }
+        
+        function updateProgress(data) {
+            const progressFill = document.getElementById('progressFill');
+            const scanOutput = document.getElementById('scanOutput');
+            
+            const progress = data.progress || 0;
+            progressFill.style.width = progress + '%';
+            progressFill.textContent = progress + '%';
+            
+            if (data.output) {
+                scanOutput.textContent = data.output;
+                scanOutput.scrollTop = scanOutput.scrollHeight;
+            }
+            
+            if (data.status === 'error') {
+                scanOutput.textContent += '\n\nError: ' + (data.error || 'Unknown error');
+            }
+        }
+        
+        document.getElementById('stopScan').addEventListener('click', () => {
+            if (statusInterval) {
+                clearInterval(statusInterval);
+                statusInterval = null;
+            }
+            currentScanId = null;
+            document.getElementById('scanProgress').style.display = 'none';
+        });
+        
+        async function loadScanHistory() {
+            try {
+                const response = await fetch('/scans');
+                const scans = await response.json();
+                
+                const historyList = document.getElementById('historyList');
+                
+                if (scans.length === 0) {
+                    historyList.innerHTML = '<p style="color: #999;">No scans yet</p>';
+                } else {
+                    historyList.innerHTML = scans.map(scan => `
+                        <div class="history-item">
+                            <div>
+                                <strong>${scan.target}</strong>
+                                <br>
+                                <small>${scan.type} - ${new Date(scan.started).toLocaleString()}</small>
+                            </div>
+                            <div>
+                                <span class="status-badge status-${scan.status}">${scan.status}</span>
+                                ${scan.status === 'completed' ? `
+                                    <button onclick="downloadResults('${scan.id}')" style="margin-left: 10px; padding: 5px 10px; font-size: 14px;">
+                                        Download
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading scan history:', error);
+            }
+        }
+        
+        async function downloadResults(scanId) {
+            window.location.href = `/download/${scanId}`;
+        }
+        
+        loadScanHistory();
+        setInterval(loadScanHistory, 10000);
+    </script>
+</body>
+</html>
