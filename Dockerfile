@@ -40,7 +40,6 @@ WORKDIR /app
 
 COPY app.py .
 COPY templates/ templates/
-COPY static/ static/
 
 EXPOSE 8080
 
