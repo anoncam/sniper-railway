@@ -13,6 +13,13 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Import our scanners
 try:
+    from comprehensive_scanner import ComprehensiveScanner
+    HAS_COMPREHENSIVE_SCANNER = True
+except ImportError as e:
+    print(f"Warning: Could not import ComprehensiveScanner: {e}")
+    HAS_COMPREHENSIVE_SCANNER = False
+
+try:
     from enhanced_scanner import EnhancedScanner
     HAS_ENHANCED_SCANNER = True
 except ImportError as e:
@@ -93,7 +100,36 @@ def run_scan(scan_id, target, scan_type, options):
     }
     
     try:
-        # Try enhanced scanner first (with real tools)
+        # Try comprehensive scanner first (most complete)
+        if HAS_COMPREHENSIVE_SCANNER:
+            try:
+                scanner = ComprehensiveScanner(target, scan_type)
+                
+                # Run scan in thread-safe way
+                def update_progress():
+                    for i in range(10, 100, 10):
+                        scan_status[scan_id]['progress'] = i
+                        time.sleep(2)
+                
+                progress_thread = threading.Thread(target=update_progress)
+                progress_thread.start()
+                
+                # Run the comprehensive scan
+                scan_output = scanner.run_full_scan()
+                scan_status[scan_id]['output'] = scan_output
+                scan_status[scan_id]['progress'] = 100
+                scan_status[scan_id]['status'] = 'completed'
+                scan_status[scan_id]['finished'] = datetime.now().isoformat()
+                
+                # Save results
+                with open(f'{RESULTS_DIR}/{scan_id}.json', 'w') as f:
+                    json.dump(scan_status[scan_id], f)
+                
+                return
+            except Exception as e:
+                print(f"Comprehensive scanner failed: {e}, falling back to enhanced scanner")
+        
+        # Try enhanced scanner second (with real tools)
         if HAS_ENHANCED_SCANNER:
             try:
                 scanner = EnhancedScanner(target, scan_type)

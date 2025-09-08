@@ -49,6 +49,19 @@ RUN apt-get update && apt-get install -y \
     testssl.sh \
     davtest \
     cewl \
+    enum4linux \
+    nbtscan \
+    smbclient \
+    rpcclient \
+    onesixtyone \
+    snmp \
+    snmpwalk \
+    ldapsearch \
+    medusa \
+    crackmapexec \
+    searchsploit \
+    exploitdb \
+    ssh-audit \
     && rm -rf /var/lib/apt/lists/*
 
 # Set capabilities for tools that need them
@@ -81,6 +94,7 @@ WORKDIR /app
 COPY app.py .
 COPY scanner.py .
 COPY enhanced_scanner.py .
+COPY comprehensive_scanner.py .
 COPY templates/ templates/
 COPY nmap-wrapper.sh /app/tools/
 COPY sniper-wrapper.sh /app/tools/
